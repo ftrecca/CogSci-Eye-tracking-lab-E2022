@@ -1,0 +1,126 @@
+---
+title: "CogSci eye-tracking lab Fall 2022"
+subtitle: "Data analysis exercise (Visual Search experiment)"
+author: "Fabio Trecca"
+date: "8/12/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+require(knitr)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+pacman::p_load(tidyverse, jpeg, grid, lme4, lmerTest, DHARMa, MuMIn, effects)
+```
+
+## Load the data (skip if already loaded)
+
+```{r load data}
+
+```
+
+*Note: Use either the Fixation data set or Saccade data set depending on what is most relevant in each exercise*
+
+## Visual foraging (Rhodes et al., 2014)
+
+We want to test the hypothesis that eye movements are affected by task structure and goals (top-down influence): i.e., eye movements differ based on whether we are searching for the start or counting objects, *even when we are looking at the same pictures*.
+
+### Hypothesis 1a: Longer tail in the distribution of saccades amplitude in Search (vs Count) condition
+
+We know from the paper that the amplitude of saccades in the searching task has a peculiar frequency distribution with a long tail. This means that most of the saccades have very short amplitude, but few of them have very high amplitude (since our eyes are jumping to a new place where we can forage — exploit and explore). The same may not be true for the counting task, where we expect there to be less variation in the amplitude of saccades (thus a shorter tail). 
+
+Let's start by testing this hypothesis graphically. First of all we plot the density distribution of saccade amplitudes separately for the two tasks:
+
+```{r}
+
+```
+
+The plot seems to show that searching has a thin head and a long tail, whereas the opposite is true of counting.
+
+Of course we want to make sure that this pattern holds statistically, and that the difference we observe is not just due to a spurious effect of noise. Let's therefore model the data statistically.
+
+Start by trying to figure out how the data are distributed in terms of amplitude. Start by looking at mean, median, and minimum-maximum values for the two tasks:
+
+```{r}
+
+```
+
+Next, we will try to model the data to see whether the two differences in means are statistically significant. Find the fixed and random effect structure that you think is most appropriate. 
+
+We can start by modeling the data with a Gaussian function, but probably a Lognormal (= gaussian with log-link) is a better fit for our data. (Notice that for the lognormal model to work, amplitude should be different from zero -- please fix if necessary). Try both and see which model performs best.
+
+Tip: if the model does not converge / is singular, try doing a stepwise reduction of the random effect structure.
+
+```{r}
+mGaus <-
+
+mLog <-
+  
+summary(mGaus)
+summary(mLog)
+```
+
+The mean amplitude in the Search condition is significantly higher, which is consistent with the plot. But which model is the best one? Generate predictions from the models and plot their density, then compare the predictions to the distribution of the actual data. What do you notice?
+
+```{r}
+pg <- predict(mGaus)
+pm <- predict(mLog)
+par(mfrow=c(1,3))
+plot(density(pg), main = "Gaussian amplitude", xlim=c(0, 30))
+plot(density(pm), main = "Lognormal amplitude", xlim=c(0, 30))
+plot(density(Saccades$Amplitude), main = "Observed amplitude")
+```
+
+We can confirm these results by simply counting the number of very long saccades in the two conditions. One (very simple) way of operationalize this may be to define a "long" saccade as one that is above 2 SD from the mean, and a "short" saccade as one that is below 2 SD from the mean. You can code "long" as 1 and "short" as 0.
+
+```{r}
+Saccades$LongSaccade <- ifelse( ... )
+```
+
+Using logistic regression, test the predictions that the probability of saccade amplitude being long is higher in the Search condition than in the Count condition:
+
+```{r}
+mLogit <-
+
+summary(mLogit)
+plot(allEffects(mLogit))
+```
+
+What does this model show?
+
+### Hypothesis 1b: Larger spatial dispersion in the Search (vs Count) condition?
+
+We can look at total amplitude (= the sum of all individual saccade amplitudes) as an indicator of the total distance on screen that was covered by eye movement.
+
+Generate this variable and use it as outcome variable in a mixed-effects model with task (Count vs Search) as predictor. Identify the most appropriate random effect structure.
+
+```{r}
+
+```
+
+### Hypothesis 2a: Longer fixation duration in Count condition
+
+We can imagine that people make slightly longer fixations when counting objects rather than searching for the star. Visual foraging is usually associated with faster movements, so maybe we will see a difference here.
+
+Let's start by plotting fixation duration in the two conditions:
+
+```{r}
+par(mfrow=c(1,2))
+plot(density(Fixations[Fixations$Task == "Search", ]$Duration), main = "Search", xlim = c(0, 1000))
+plot(density(Fixations[Fixations$Task == "Count", ]$Duration), main = "Count", xlim = c(0, 1000))
+```
+
+What do the plots seem to show? Do they corroborate our hypothesis?
+
+Let's test this statistically as well. We will take the same approach as above by running a Gaussian model first, and a Lognormal model afterward.
+
+```{r}
+mGaus <- 
+
+mLog <- 
+
+anova(mGaus, mLog)
+```
+
+Tip: If the fit is singular or the model doesn't converge, do a step-wise reduction of the random effect structure (random slopes first and random intercepts last if necessary).
+
+What does the model show? How do we interpret these results?
